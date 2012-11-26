@@ -15,11 +15,15 @@ AR=$(CROSS_COMPILE)ar
 AS=$(CROSS_COMPILE)as
 OBJCOPY=$(CROSS_COMPILE)objcopy
 
-CFLAGS  = -fno-common -mcpu=cortex-m3 -mthumb -DSTM32F10X_HD=1 -DUSE_STDPERIPH_DRIVER=1
-CFLAGS += -I$(STD_PERIPH_INC) -I$(CMSIS_INC) -I$(CORE_SUP) -I.
-CFLAGS += -g -O1 
+# even linker has to got these, it can generate wrong istructions anyway (blx)
+CPU_FLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 
-LDFLAGS = -T stm32_flash.ld -L.
+CFLAGS  = $(CPU_FLAGS) -DSTM32F10X_HD=1 -DUSE_STDPERIPH_DRIVER
+CFLAGS += -I$(STD_PERIPH_INC) -I$(CMSIS_INC) -I$(CORE_SUP) -I.
+CFLAGS += -g3 -O0 -fno-inline -gstabs
+ASFLAGS += -gstabs
+
+LDFLAGS = -T stm32_flash.ld -L. -Wl,--gc-sections
 
 CC_DEPFLAGS = -MMD -MF $(@:.o=.d) -MT $@
 
@@ -39,7 +43,7 @@ LIB_OBJS =  stm32f10x_dbgmcu.o	stm32f10x_pwr.o \
 all: $(PROGRAM).elf $(PROGRAM).bin
 
 $(PROGRAM).elf: $(OBJS) libstm32.a
-	$(LD) $(LDFLAGS) -o $@ $^ -lstm32
+	$(LD) $(CPU_FLAGS) $(LDFLAGS) -o $@ $^ -lstm32
 
 $(PROGRAM).bin: $(PROGRAM).elf
 	$(OBJCOPY) -O binary $< $@ 
