@@ -1,0 +1,9 @@
+- ochranná dioda na napájení
+- zkusit použít procesor v menším pouzdře
+- musí se použít jtag piny?
+- možné osazení diody signalizující napájení
+- možné osazení signalizační diody
+- jtag měřící body vyvést blíž k sobě
+- lepší umístění konektoru napájení
+- lepší umístění tlačítek (SMD?)
+- lepší blokování (elyty k IO)
