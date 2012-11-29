@@ -1,91 +1,150 @@
 #include <stdint.h>
 #include "stm32f10x.h"
 
-static void delay(uint32_t x)
+static void delay(volatile uint32_t x)
 {
-	volatile int i;
-
-	for (i = 0; i < x; i++) ;
+	for (; x > 0; x--) ;
 }
 
-static int pwm_out_init()
+static void pwm_out_init()
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
-	uint16_t PrescalerValue = 0;
+	uint16_t prescalerValue = 0;
 
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB |
+	        RCC_APB2Periph_GPIOD | RCC_APB2Periph_AFIO, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 |
+	        RCC_APB1Periph_TIM4 | RCC_APB1Periph_TIM5, ENABLE);
 
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_8;
+#ifndef DEBUG
+    GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
+#endif
+
+	/* PA: TIM5 CH1-4 (0-3) no remap,
+	 *     TIM3 CH1-2 (6,7) no remap,
+	 *     TIM2 CH1 (15j)	full remap */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |
+	        GPIO_Pin_6 | GPIO_Pin_7 |
+	        GPIO_Pin_15;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, ENABLE);
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	PrescalerValue = (uint16_t) (SystemCoreClock / 24e6) - 1;
+	/* PB: TIM3 CH3-4 (0,1) no remap,
+	 *     TIM2 CH2-4 (3j,10,11) full remap */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 |
+	        GPIO_Pin_3 | GPIO_Pin_10 | GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	/* PD: TIM4 CH1-4 (12-15) remap */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, DISABLE);
+	GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
+	GPIO_PinRemapConfig(GPIO_Remap_TIM4, ENABLE);
+
+	prescalerValue = (uint16_t) (SystemCoreClock / 24e6) - 1;
 	/* Time base configuration */
-	TIM_TimeBaseStructure.TIM_Period = (24e6/36e3) - 1;
-	TIM_TimeBaseStructure.TIM_Prescaler = PrescalerValue;
+	TIM_TimeBaseStructure.TIM_Period = 512 -1; //~46kHz  (24e6/36e3) - 1;
+	TIM_TimeBaseStructure.TIM_Prescaler = prescalerValue;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 
+	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
 	TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
+	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
+	TIM_TimeBaseInit(TIM5, &TIM_TimeBaseStructure);
 
-	/* PWM1 Mode configuration: Channel3 */
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitStructure.TIM_Pulse = 10;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitStructure.TIM_Pulse = 0;
+	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 
+	TIM_OC1Init(TIM2, &TIM_OCInitStructure);
+	TIM_OC2Init(TIM2, &TIM_OCInitStructure);
+	TIM_OC3Init(TIM2, &TIM_OCInitStructure);
+	TIM_OC4Init(TIM2, &TIM_OCInitStructure);
+	TIM_OC1Init(TIM3, &TIM_OCInitStructure);
+	TIM_OC2Init(TIM3, &TIM_OCInitStructure);
 	TIM_OC3Init(TIM3, &TIM_OCInitStructure);
+	TIM_OC4Init(TIM3, &TIM_OCInitStructure);
+	TIM_OC1Init(TIM4, &TIM_OCInitStructure);
+	TIM_OC2Init(TIM4, &TIM_OCInitStructure);
+	TIM_OC3Init(TIM4, &TIM_OCInitStructure);
+	TIM_OC4Init(TIM4, &TIM_OCInitStructure);
+	TIM_OC1Init(TIM5, &TIM_OCInitStructure);
+	TIM_OC2Init(TIM5, &TIM_OCInitStructure);
+	TIM_OC3Init(TIM5, &TIM_OCInitStructure);
+	TIM_OC4Init(TIM5, &TIM_OCInitStructure);
+
+	TIM_OC1PreloadConfig(TIM2, TIM_OCPreload_Enable);
+	TIM_OC2PreloadConfig(TIM2, TIM_OCPreload_Enable);
+	TIM_OC3PreloadConfig(TIM2, TIM_OCPreload_Enable);
+	TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Enable);
+	TIM_OC1PreloadConfig(TIM3, TIM_OCPreload_Enable);
+	TIM_OC2PreloadConfig(TIM3, TIM_OCPreload_Enable);
 	TIM_OC3PreloadConfig(TIM3, TIM_OCPreload_Enable);
+	TIM_OC4PreloadConfig(TIM3, TIM_OCPreload_Enable);
+	TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
+	TIM_OC2PreloadConfig(TIM4, TIM_OCPreload_Enable);
+	TIM_OC3PreloadConfig(TIM4, TIM_OCPreload_Enable);
+	TIM_OC4PreloadConfig(TIM4, TIM_OCPreload_Enable);
+	TIM_OC1PreloadConfig(TIM5, TIM_OCPreload_Enable);
+	TIM_OC2PreloadConfig(TIM5, TIM_OCPreload_Enable);
+	TIM_OC3PreloadConfig(TIM5, TIM_OCPreload_Enable);
+	TIM_OC4PreloadConfig(TIM5, TIM_OCPreload_Enable);
 
+	TIM_ARRPreloadConfig(TIM2, ENABLE);
 	TIM_ARRPreloadConfig(TIM3, ENABLE);
-	TIM_Cmd(TIM3, ENABLE);
+	TIM_ARRPreloadConfig(TIM4, ENABLE);
+	TIM_ARRPreloadConfig(TIM5, ENABLE);
 
-	return 0;
+	TIM_Cmd(TIM2, ENABLE);
+	TIM_Cmd(TIM3, ENABLE);
+	TIM_Cmd(TIM4, ENABLE);
+	TIM_Cmd(TIM5, ENABLE);
 }
 
 int main(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-	/* GPIOD Periph clock enable */
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
-
-	/* Configure PD0 and PD2 in output pushpull mode */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	GPIO_Init(GPIOD, &GPIO_InitStructure);
-
 	pwm_out_init();
 
-	int i = 0;
+	int pulse = 0;
+	int diff = 2;
 	while (1)
 	{
-		unsigned reg;
+	    if (pulse == 0)
+	        diff = 2;
+	    if (pulse == 512)
+	        diff = -2;
+	    pulse += diff;
 
-		if (i++ % 2) {
-			GPIOA->BSRR = 0x0000FFFF;
-			GPIOB->BSRR = 0x0000FFFF;
-			GPIOC->BSRR = 0x0000FFFF;
-			GPIOD->BSRR = 0x0000FFFF;
-		} else {
-			GPIOA->BRR  = 0x0000FFFF;
-			GPIOB->BRR  = 0x0000FFFF;
-			GPIOC->BRR  = 0x0000FFFF;
-			GPIOD->BRR  = 0x0000FFFF;
+		TIM2->CCR1 = pulse;
+		TIM2->CCR2 = pulse;
+		TIM2->CCR3 = pulse;
+		TIM2->CCR4 = pulse;
+		TIM3->CCR1 = pulse;
+		TIM3->CCR2 = pulse;
+		TIM3->CCR3 = pulse;
+		TIM3->CCR4 = pulse;
+		TIM4->CCR1 = pulse;
+		TIM4->CCR2 = pulse;
+		TIM4->CCR3 = pulse;
+		TIM4->CCR4 = pulse;
+		TIM5->CCR1 = pulse;
+		TIM5->CCR2 = pulse;
+		TIM5->CCR3 = pulse;
+		TIM5->CCR4 = pulse;
 
-		}
 
 		delay(500000);
 	}
