@@ -1,5 +1,5 @@
 
-STD_PERIPH_DIR ?= /home/honza/_dev/stm32/STM32F10x_StdPeriph_Lib_V3.5.0
+STD_PERIPH_DIR ?= c:/work/_dev/stm32/STM32F10x_StdPeriph_Lib_V3.5.0
 PROGRAM = dmx_dimmer
 
 
@@ -15,30 +15,42 @@ AR=$(CROSS_COMPILE)ar
 AS=$(CROSS_COMPILE)as
 OBJCOPY=$(CROSS_COMPILE)objcopy
 
+KIT = discovery
+
+ifeq ($(KIT), "discovery")
+LINKER_SCRIPT = stm32_flash_64_8.ld
+START_CODE = startup_stm32f0xx.o
+CPU_DEF = -DSTM32F10X_MD_VL=1
+else
+LINKER_SCRIPT = stm32_flash_512_64.ld
+START_CODE = startup_stm32f10x_hd.o
+CPU_DEF = -DSTM32F10X_HD=1
+endif
+
 # even linker has to got these, it can generate wrong istructions anyway (blx)
-CPU_FLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
+CPU_FLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft $(CPU_DEF)
 
-CFLAGS  = $(CPU_FLAGS) -DSTM32F10X_HD=1 -DUSE_STDPERIPH_DRIVER
+CFLAGS  = $(CPU_FLAGS) -DUSE_STDPERIPH_DRIVER
 CFLAGS += -I$(STD_PERIPH_INC) -I$(CMSIS_INC) -I$(CORE_SUP) -I.
-CFLAGS += -g3 -O0 -fno-inline -gstabs
-ASFLAGS += -gstabs
+CFLAGS += -c -g -O0 -Wall -DDEBUG
+ASFLAGS += -g -gstabs
 
-LDFLAGS = -T stm32_flash.ld -L. -Wl,--gc-sections
+LDFLAGS = -T $(LINKER_SCRIPT) -L.
 
 CC_DEPFLAGS = -MMD -MF $(@:.o=.d) -MT $@
 
 vpath %.c $(STD_PERIPH_DIR)/Libraries/STM32F10x_StdPeriph_Driver/src
 
-OBJS = main.o stm32f10x_it.o system_stm32f10x.o startup_stm32f10x_hd.o
+OBJS = main.o stm32f10x_it.o system_stm32f10x.o $(START_CODE) 
 
 LIB_OBJS =  stm32f10x_dbgmcu.o	stm32f10x_pwr.o \
         	misc.o				stm32f10x_dma.o		stm32f10x_rcc.o \
 			stm32f10x_adc.o		stm32f10x_exti.o	stm32f10x_rtc.o \
-			stm32f10x_bkp.o		stm32f10x_flash.o	stm32f10x_sdio.o \
-			stm32f10x_can.o		stm32f10x_fsmc.o	stm32f10x_spi.o \
-			stm32f10x_cec.o		stm32f10x_gpio.o	stm32f10x_tim.o \
-			stm32f10x_crc.o		stm32f10x_i2c.o		stm32f10x_usart.o \
-			stm32f10x_dac.o		stm32f10x_iwdg.o	stm32f10x_wwdg.o
+			stm32f10x_flash.o	stm32f10x_sdio.o \
+			stm32f10x_spi.o \
+			stm32f10x_gpio.o	stm32f10x_tim.o \
+			stm32f10x_usart.o \
+			stm32f10x_iwdg.o	stm32f10x_wwdg.o
 
 all: $(PROGRAM).elf $(PROGRAM).bin
 
