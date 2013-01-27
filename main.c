@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "stm32f10x.h"
+#include "dmx512_rec.h"
 
 static void delay(volatile uint32_t x)
 {
@@ -8,47 +9,9 @@ static void delay(volatile uint32_t x)
 
 static void pwm_out_init()
 {
-	GPIO_InitTypeDef GPIO_InitStructure;
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
 	uint16_t prescalerValue = 0;
-
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB |
-	        RCC_APB2Periph_GPIOD | RCC_APB2Periph_AFIO, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 |
-	        RCC_APB1Periph_TIM4 | RCC_APB1Periph_TIM5, ENABLE);
-
-#ifndef DEBUG
-    GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
-#endif
-
-	/* PA: TIM5 CH1-4 (0-3) no remap,
-	 *     TIM3 CH1-2 (6,7) no remap,
-	 *     TIM2 CH1 (15j)	full remap */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |
-	        GPIO_Pin_6 | GPIO_Pin_7 |
-	        GPIO_Pin_15;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-	/* PB: TIM3 CH3-4 (0,1) no remap,
-	 *     TIM2 CH2-4 (3j,10,11) full remap */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 |
-	        GPIO_Pin_3 | GPIO_Pin_10 | GPIO_Pin_11;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-	/* PD: TIM4 CH1-4 (12-15) remap */
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOD, &GPIO_InitStructure);
-
-	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, DISABLE);
-	GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
-	GPIO_PinRemapConfig(GPIO_Remap_TIM4, ENABLE);
 
 	prescalerValue = (uint16_t) (SystemCoreClock / 24e6) - 1;
 	/* Time base configuration */
@@ -112,40 +75,80 @@ static void pwm_out_init()
 	TIM_Cmd(TIM5, ENABLE);
 }
 
-int main(void)
+static void pwm_init()
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-	pwm_out_init();
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB |
+	        RCC_APB2Periph_GPIOD | RCC_APB2Periph_AFIO, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 |
+	        RCC_APB1Periph_TIM4 | RCC_APB1Periph_TIM5, ENABLE);
 
-	int pulse = 0;
-	int diff = 2;
+#ifndef DEBUG
+    GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
+#endif
+
+	/* PA: TIM5 CH1-4 (0-3) no remap,
+	 *     TIM3 CH1-2 (6,7) no remap,
+	 *     TIM2 CH1 (15j)	full remap */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |
+	        GPIO_Pin_6 | GPIO_Pin_7 |
+	        GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	/* PB: TIM3 CH3-4 (0,1) no remap,
+	 *     TIM2 CH2-4 (3j,10,11) full remap */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 |
+	        GPIO_Pin_3 | GPIO_Pin_10 | GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	/* PD: TIM4 CH1-4 (12-15) remap */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, DISABLE);
+	GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
+	GPIO_PinRemapConfig(GPIO_Remap_TIM4, ENABLE);
+
+	pwm_out_init();
+}
+
+
+
+static void dmx512_init()
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1 | RCC_APB2Periph_AFIO, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+	GPIO_PinRemapConfig(GPIO_Remap_USART2, ENABLE);
+	GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, ENABLE);
+
+	dmx512_rec_init(TIM1, USART2);
+}
+
+int main(void)
+{
+	pwm_init();
+	dmx512_init();
+
 	while (1)
 	{
-	    if (pulse == 0)
-	        diff = 2;
-	    if (pulse == 512)
-	        diff = -2;
-	    pulse += diff;
-
-		TIM2->CCR1 = pulse;
-		TIM2->CCR2 = pulse;
-		TIM2->CCR3 = pulse;
-		TIM2->CCR4 = pulse;
-		TIM3->CCR1 = pulse;
-		TIM3->CCR2 = pulse;
-		TIM3->CCR3 = pulse;
-		TIM3->CCR4 = pulse;
-		TIM4->CCR1 = pulse;
-		TIM4->CCR2 = pulse;
-		TIM4->CCR3 = pulse;
-		TIM4->CCR4 = pulse;
-		TIM5->CCR1 = pulse;
-		TIM5->CCR2 = pulse;
-		TIM5->CCR3 = pulse;
-		TIM5->CCR4 = pulse;
-
-
 		delay(500000);
 	}
 
