@@ -61,6 +61,8 @@ void USART2_IRQHandler(void)
 	if (USART_GetFlagStatus(USART2, USART_FLAG_FE) && !start_flag)
 		return;
 
+	start_flag = 0;
+
 	rx_byte = USART_ReceiveData(USART2);
 
 	if (packet_count == 0 && rx_byte != 0)
