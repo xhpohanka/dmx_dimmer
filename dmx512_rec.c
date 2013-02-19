@@ -56,20 +56,29 @@ int dmx512_get_start_addr(void)
 void dmx512_rec_init(TIM_TypeDef *timx, USART_TypeDef *usartx)
 {
 	TIM_ICInitTypeDef TIM_ICInitStructure;
+	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	USART_InitTypeDef USART_InitStructure;
 
+	TIM_TimeBaseStructure.TIM_Period = 0xFFFF;
+	TIM_TimeBaseStructure.TIM_Prescaler = SystemCoreClock/1e6 - 1; /* timer tics are in us */
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseInit(timx, &TIM_TimeBaseStructure);
+
 	TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
-	TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
+	TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
 	TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
 	TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
 	TIM_ICInitStructure.TIM_ICFilter = 0x0;
-
 	TIM_PWMIConfig(timx, &TIM_ICInitStructure);
+
 	TIM_SelectInputTrigger(timx, TIM_TS_TI1FP1);
 	TIM_SelectSlaveMode(timx, TIM_SlaveMode_Reset);
 	TIM_SelectMasterSlaveMode(timx, TIM_MasterSlaveMode_Enable);
+
+	TIM_ITConfig(timx, TIM_IT_CC1, ENABLE);
+	TIM_ITConfig(timx, TIM_IT_CC2, DISABLE);
 	TIM_Cmd(timx, ENABLE);
-	TIM_ITConfig(timx, TIM_IT_CC2, ENABLE);
 
 	USART_InitStructure.USART_BaudRate = 250000;
 	USART_InitStructure.USART_WordLength = USART_WordLength_8b;

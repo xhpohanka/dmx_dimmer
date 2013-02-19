@@ -128,6 +128,8 @@ static void dmx512_init()
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1 | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
 
+#if !defined DISCOVERY_KIT
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOE, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -138,13 +140,46 @@ static void dmx512_init()
 
 	GPIO_PinRemapConfig(GPIO_Remap_USART2, ENABLE);
 	GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, ENABLE);
+#else
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_PinRemapConfig(GPIO_Remap_USART2, DISABLE);
+	GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, DISABLE);
+#endif
 
 	dmx512_rec_init(TIM1, USART2);
 }
 
+static void NVIC_init(void)
+{
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	/* Configure the NVIC Preemption Priority Bits */
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
+
+	/* Enable the interrupts in NVIC */
+	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+
+	NVIC_InitStructure.NVIC_IRQChannel = TIM1_CC_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
 int main(void)
 {
-	pwm_init();
+	NVIC_init();
+//	pwm_init();
 	dmx512_init();
 
 	while (1)

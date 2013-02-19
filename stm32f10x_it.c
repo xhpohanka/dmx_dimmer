@@ -34,34 +34,34 @@ void TIM1_CC_IRQHandler(void)
 {
 	uint32_t break_time, mab_time;
 
-	TIM_ClearITPendingBit(TIM1, TIM_IT_CC2);
+	TIM_ClearITPendingBit(TIM1, TIM_IT_CC1);
 
-	break_time = TIM_GetCapture1(TIM1)/SystemCoreClock;
-	mab_time = TIM_GetCapture2(TIM1);
-
-	/* times in microseconds */
-	break_time = break_time / (SystemCoreClock/1000);
-	mab_time = mab_time / (SystemCoreClock/1000);
+	break_time = TIM_GetCapture2(TIM1);
+	mab_time = TIM_GetCapture1(TIM1) - break_time;
 
 	/* use some tolerance for times */
-	if (break_time > 85 && break_time < 178 && mab_time > 8) {
-		packet_count = 0;
+	if (break_time > 80 && break_time < 185 && mab_time > 8)
 		start_flag = 1;
-		dmx512_set_output();
-	}
 }
 
 void USART2_IRQHandler(void)
 {
 	uint8_t rx_byte;
+	int flag;
 	int start_addr = dmx512_get_start_addr();
 
 	USART_ClearITPendingBit(USART2, USART_IT_RXNE);
-
-	if (USART_GetFlagStatus(USART2, USART_FLAG_FE) && !start_flag)
+	flag = USART_GetFlagStatus(USART2, USART_FLAG_FE);
+	if (USART_GetFlagStatus(USART2, USART_FLAG_FE) && !start_flag) {
+		USART_ClearFlag(USART2, USART_FLAG_FE);
 		return;
+	}
 
-	start_flag = 0;
+	if (start_flag) {
+		start_flag = 0;
+		packet_count = 0;
+		dmx512_set_output();
+	}
 
 	rx_byte = USART_ReceiveData(USART2);
 

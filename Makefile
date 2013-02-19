@@ -15,12 +15,13 @@ AR=$(CROSS_COMPILE)ar
 AS=$(CROSS_COMPILE)as
 OBJCOPY=$(CROSS_COMPILE)objcopy
 
-KIT = discovery
+KIT = "discovery"
 
 ifeq ($(KIT), "discovery")
 LINKER_SCRIPT = stm32_flash_64_8.ld
-START_CODE = startup_stm32f0xx.o
+START_CODE = startup_stm32f10x_md_vl.o
 CPU_DEF = -DSTM32F10X_MD_VL=1
+CFLAGS += -DDISCOVERY_KIT
 else
 LINKER_SCRIPT = stm32_flash_512_64.ld
 START_CODE = startup_stm32f10x_hd.o
@@ -30,7 +31,7 @@ endif
 # even linker has to got these, it can generate wrong istructions anyway (blx)
 CPU_FLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft $(CPU_DEF)
 
-CFLAGS  = $(CPU_FLAGS) -DUSE_STDPERIPH_DRIVER
+CFLAGS += $(CPU_FLAGS) -DUSE_STDPERIPH_DRIVER
 CFLAGS += -I$(STD_PERIPH_INC) -I$(CMSIS_INC) -I$(CORE_SUP) -I.
 CFLAGS += -c -g -O0 -Wall -DDEBUG
 ASFLAGS += -g -gstabs
