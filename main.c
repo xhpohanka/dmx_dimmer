@@ -2,12 +2,12 @@
 #include "stm32f10x.h"
 #include "dmx512_rec.h"
 
-static void delay(volatile uint32_t x)
+void delay(volatile uint32_t x)
 {
 	for (; x > 0; x--) ;
 }
 
-static void pwm_out_init()
+static void pwm_out_init(TIM_TypeDef *timx, int channels)
 {
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -20,70 +20,47 @@ static void pwm_out_init()
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 
-	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
-	TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
-	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
-	TIM_TimeBaseInit(TIM5, &TIM_TimeBaseStructure);
+	TIM_TimeBaseInit(timx, &TIM_TimeBaseStructure);
 
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OCInitStructure.TIM_Pulse = 0;
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 
-	TIM_OC1Init(TIM2, &TIM_OCInitStructure);
-	TIM_OC2Init(TIM2, &TIM_OCInitStructure);
-	TIM_OC3Init(TIM2, &TIM_OCInitStructure);
-	TIM_OC4Init(TIM2, &TIM_OCInitStructure);
-	TIM_OC1Init(TIM3, &TIM_OCInitStructure);
-	TIM_OC2Init(TIM3, &TIM_OCInitStructure);
-	TIM_OC3Init(TIM3, &TIM_OCInitStructure);
-	TIM_OC4Init(TIM3, &TIM_OCInitStructure);
-	TIM_OC1Init(TIM4, &TIM_OCInitStructure);
-	TIM_OC2Init(TIM4, &TIM_OCInitStructure);
-	TIM_OC3Init(TIM4, &TIM_OCInitStructure);
-	TIM_OC4Init(TIM4, &TIM_OCInitStructure);
-	TIM_OC1Init(TIM5, &TIM_OCInitStructure);
-	TIM_OC2Init(TIM5, &TIM_OCInitStructure);
-	TIM_OC3Init(TIM5, &TIM_OCInitStructure);
-	TIM_OC4Init(TIM5, &TIM_OCInitStructure);
+	if (channels & (1 << 0)) {
+		TIM_OC1Init(timx, &TIM_OCInitStructure);
+		TIM_OC1PreloadConfig(timx, TIM_OCPreload_Enable);
+	}
 
-	TIM_OC1PreloadConfig(TIM2, TIM_OCPreload_Enable);
-	TIM_OC2PreloadConfig(TIM2, TIM_OCPreload_Enable);
-	TIM_OC3PreloadConfig(TIM2, TIM_OCPreload_Enable);
-	TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Enable);
-	TIM_OC1PreloadConfig(TIM3, TIM_OCPreload_Enable);
-	TIM_OC2PreloadConfig(TIM3, TIM_OCPreload_Enable);
-	TIM_OC3PreloadConfig(TIM3, TIM_OCPreload_Enable);
-	TIM_OC4PreloadConfig(TIM3, TIM_OCPreload_Enable);
-	TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
-	TIM_OC2PreloadConfig(TIM4, TIM_OCPreload_Enable);
-	TIM_OC3PreloadConfig(TIM4, TIM_OCPreload_Enable);
-	TIM_OC4PreloadConfig(TIM4, TIM_OCPreload_Enable);
-	TIM_OC1PreloadConfig(TIM5, TIM_OCPreload_Enable);
-	TIM_OC2PreloadConfig(TIM5, TIM_OCPreload_Enable);
-	TIM_OC3PreloadConfig(TIM5, TIM_OCPreload_Enable);
-	TIM_OC4PreloadConfig(TIM5, TIM_OCPreload_Enable);
+	if (channels & (1 << 1)) {
+		TIM_OC2Init(timx, &TIM_OCInitStructure);
+		TIM_OC2PreloadConfig(timx, TIM_OCPreload_Enable);
+	}
 
-	TIM_ARRPreloadConfig(TIM2, ENABLE);
-	TIM_ARRPreloadConfig(TIM3, ENABLE);
-	TIM_ARRPreloadConfig(TIM4, ENABLE);
-	TIM_ARRPreloadConfig(TIM5, ENABLE);
+	if (channels & (1 << 2)) {
+		TIM_OC3Init(timx, &TIM_OCInitStructure);
+		TIM_OC3PreloadConfig(timx, TIM_OCPreload_Enable);
+	}
 
-	TIM_Cmd(TIM2, ENABLE);
-	TIM_Cmd(TIM3, ENABLE);
-	TIM_Cmd(TIM4, ENABLE);
-	TIM_Cmd(TIM5, ENABLE);
+	if (channels & (1 << 3)) {
+		TIM_OC4Init(timx, &TIM_OCInitStructure);
+		TIM_OC4PreloadConfig(timx, TIM_OCPreload_Enable);
+	}
+
+	TIM_ARRPreloadConfig(timx, ENABLE);
+
+	TIM_Cmd(timx, ENABLE);
 }
 
 static void pwm_init()
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
+#if !defined DISCOVERY_KIT
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB |
 	        RCC_APB2Periph_GPIOD | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 |
 	        RCC_APB1Periph_TIM4 | RCC_APB1Periph_TIM5, ENABLE);
-
 #ifndef DEBUG
     GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
 #endif
@@ -92,8 +69,7 @@ static void pwm_init()
 	 *     TIM3 CH1-2 (6,7) no remap,
 	 *     TIM2 CH1 (15j)	full remap */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |
-	        GPIO_Pin_6 | GPIO_Pin_7 |
-	        GPIO_Pin_15;
+	        GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_15;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -116,10 +92,52 @@ static void pwm_init()
 	GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
 	GPIO_PinRemapConfig(GPIO_Remap_TIM4, ENABLE);
 
-	pwm_out_init();
+	pwm_out_init(TIM2, 0x0f);
+	pwm_out_init(TIM3, 0x0f);
+	pwm_out_init(TIM4, 0x0f);
+	pwm_out_init(TIM5, 0x0f);
+
+#else
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 |
+	        RCC_APB1Periph_TIM4 | RCC_APB1Periph_TIM5, ENABLE);
+
+	/* PC: TIM3 CH3-4 (8,8) full remap */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+	GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, ENABLE);
+	pwm_out_init(TIM3, (1 << 2) | (1 << 3));
+#endif
+
 }
 
-
+void pwm_set_output(uint8_t *data)
+{
+#if !defined DISCOVERY_KIT
+	TIM2->CCR1 = data[0];
+	TIM2->CCR2 = data[1];
+	TIM2->CCR3 = data[2];
+	TIM2->CCR4 = data[3];
+	TIM3->CCR1 = data[4];
+	TIM3->CCR2 = data[5];
+	TIM3->CCR3 = data[6];
+	TIM3->CCR4 = data[7];
+	TIM4->CCR1 = data[8];
+	TIM4->CCR2 = data[9];
+	TIM4->CCR3 = data[10];
+	TIM4->CCR4 = data[11];
+	TIM5->CCR1 = data[12];
+	TIM5->CCR2 = data[13];
+	TIM5->CCR3 = data[14];
+	TIM5->CCR4 = data[15];
+#else
+	TIM3->CCR3 = data[0];
+	TIM3->CCR4 = data[1];
+#endif
+}
 
 static void dmx512_init()
 {
@@ -164,13 +182,12 @@ static void NVIC_init(void)
 	/* Configure the NVIC Preemption Priority Bits */
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_0);
 
-	/* Enable the interrupts in NVIC */
-	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannel = TIM1_CC_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
-	NVIC_InitStructure.NVIC_IRQChannel = TIM1_CC_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
@@ -178,13 +195,21 @@ static void NVIC_init(void)
 
 int main(void)
 {
+	struct dmx512_data *dmx512_data;
+
 	NVIC_init();
-//	pwm_init();
+	pwm_init();
 	dmx512_init();
+	dmx512_set_startaddr(49);
+	dmx512_rec_enable(1);
 
 	while (1)
 	{
-		delay(500000);
+		dmx512_data = dmx512_get_data();
+		if (!dmx512_data->processed_flag) {
+			pwm_set_output(dmx512_data->data);
+			dmx512_data->processed_flag = 1;
+		}
 	}
 
 }

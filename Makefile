@@ -1,5 +1,5 @@
 
-STD_PERIPH_DIR ?= c:/work/_dev/stm32/STM32F10x_StdPeriph_Lib_V3.5.0
+STD_PERIPH_DIR ?= ../STM32F10x_StdPeriph_Lib_V3.5.0
 PROGRAM = dmx_dimmer
 
 

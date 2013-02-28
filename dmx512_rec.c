@@ -11,32 +11,33 @@
 #include <stm32f10x_usart.h>
 #include "dmx512_rec.h"
 
+struct dmx512_config {
+	TIM_TypeDef *tim;
+	USART_TypeDef *usart;
+	int start_addr;
+};
+
 static uint8_t input_data[NUMBER_OUTPUTS];
-static int start_addr = 1;
+static struct dmx512_config dmx512_config;
+static struct dmx512_data data;
+
+
+struct dmx512_data *dmx512_get_data(void)
+{
+	return &data;
+}
 
 void dmx512_set_input(int i, uint8_t value)
 {
 	input_data[i] = value;
 }
 
-void dmx512_set_output(void)
+void dmx512_new_data(enum packet_type type, int packet_len)
 {
-	TIM2->CCR1 = input_data[0];
-	TIM2->CCR2 = input_data[1];
-	TIM2->CCR3 = input_data[2];
-	TIM2->CCR4 = input_data[3];
-	TIM3->CCR1 = input_data[4];
-	TIM3->CCR2 = input_data[5];
-	TIM3->CCR3 = input_data[6];
-	TIM3->CCR4 = input_data[7];
-	TIM4->CCR1 = input_data[8];
-	TIM4->CCR2 = input_data[9];
-	TIM4->CCR3 = input_data[10];
-	TIM4->CCR4 = input_data[11];
-	TIM5->CCR1 = input_data[12];
-	TIM5->CCR2 = input_data[13];
-	TIM5->CCR3 = input_data[14];
-	TIM5->CCR4 = input_data[15];
+	data.processed_flag = 0;
+	data.type = type;
+	data.packet_len = packet_len;
+	memcpy(data.data, input_data, NUMBER_OUTPUTS);
 }
 
 void dmx512_clear_input(void)
@@ -46,7 +47,7 @@ void dmx512_clear_input(void)
 
 int dmx512_get_start_addr(void)
 {
-	return start_addr;
+	return dmx512_config.start_addr;
 }
 
 /*
@@ -58,6 +59,10 @@ void dmx512_rec_init(TIM_TypeDef *timx, USART_TypeDef *usartx)
 	TIM_ICInitTypeDef TIM_ICInitStructure;
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	USART_InitTypeDef USART_InitStructure;
+
+	dmx512_config.tim = timx;
+	dmx512_config.usart = usartx;
+	dmx512_config.start_addr = 0;
 
 	TIM_TimeBaseStructure.TIM_Period = 0xFFFF;
 	TIM_TimeBaseStructure.TIM_Prescaler = SystemCoreClock/1e6 - 1; /* timer tics are in us */
@@ -76,8 +81,6 @@ void dmx512_rec_init(TIM_TypeDef *timx, USART_TypeDef *usartx)
 	TIM_SelectSlaveMode(timx, TIM_SlaveMode_Reset);
 	TIM_SelectMasterSlaveMode(timx, TIM_MasterSlaveMode_Enable);
 
-	TIM_ITConfig(timx, TIM_IT_CC1, ENABLE);
-	TIM_ITConfig(timx, TIM_IT_CC2, DISABLE);
 	TIM_Cmd(timx, ENABLE);
 
 	USART_InitStructure.USART_BaudRate = 250000;
@@ -87,7 +90,25 @@ void dmx512_rec_init(TIM_TypeDef *timx, USART_TypeDef *usartx)
 	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 	USART_InitStructure.USART_Mode = USART_Mode_Rx;
 
+	dmx512_clear_input();
+	memset(&data, 0, sizeof(struct dmx512_data));
+
 	USART_Init(usartx, &USART_InitStructure);
-	USART_ITConfig(usartx, USART_IT_RXNE, ENABLE);
 	USART_Cmd(usartx, ENABLE);
+}
+
+void dmx512_set_startaddr(int addr)
+{
+	dmx512_config.start_addr = addr;
+}
+
+void dmx512_rec_enable(int on)
+{
+	if (on) {
+		USART_ITConfig(dmx512_config.usart, USART_IT_RXNE, ENABLE);
+		TIM_ITConfig(dmx512_config.tim, TIM_IT_CC1, ENABLE);
+	} else {
+		USART_ITConfig(dmx512_config.usart, USART_IT_RXNE, DISABLE);
+		TIM_ITConfig(dmx512_config.tim, TIM_IT_CC1, DISABLE);
+	}
 }

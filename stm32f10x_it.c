@@ -25,10 +25,10 @@
 #include "stm32f10x_it.h"
 #include "dmx512_rec.h"
 
-
-static int packet_count = 0;
-static int start_flag = 0;
-
+static volatile int dmx_error = 1;
+static volatile int byte_count = 0;
+static volatile int start_flag = 0;
+static enum packet_type packet_type;
 
 void TIM1_CC_IRQHandler(void)
 {
@@ -40,38 +40,52 @@ void TIM1_CC_IRQHandler(void)
 	mab_time = TIM_GetCapture1(TIM1) - break_time;
 
 	/* use some tolerance for times */
-	if (break_time > 80 && break_time < 185 && mab_time > 8)
+	if (break_time > 80 && break_time < 10e3 && mab_time > 8)
 		start_flag = 1;
+	else
+		start_flag = 0;
 }
 
 void USART2_IRQHandler(void)
 {
 	uint8_t rx_byte;
-	int flag;
+	int16_t fe_flag;
 	int start_addr = dmx512_get_start_addr();
 
 	USART_ClearITPendingBit(USART2, USART_IT_RXNE);
-	flag = USART_GetFlagStatus(USART2, USART_FLAG_FE);
-	if (USART_GetFlagStatus(USART2, USART_FLAG_FE) && !start_flag) {
-		USART_ClearFlag(USART2, USART_FLAG_FE);
-		return;
-	}
+
+	fe_flag = USART_GetFlagStatus(USART2, USART_FLAG_FE);
+	rx_byte = USART_ReceiveData(USART2); /* also clears FE flag */
 
 	if (start_flag) {
-		start_flag = 0;
-		packet_count = 0;
-		dmx512_set_output();
+		dmx512_new_data(packet_type, byte_count - 1);
+		byte_count = 0;
 	}
 
-	rx_byte = USART_ReceiveData(USART2);
-
-	if (packet_count == 0 && rx_byte != 0)
+	if (fe_flag && !start_flag)
 		return;
 
-	if (packet_count >= start_addr && packet_count < start_addr + NUMBER_OUTPUTS)
-		dmx512_set_input(packet_count - start_addr, rx_byte);
+	/* first byte determines packet type */
+	if (byte_count == 0) {
+		dmx_error = 0;
+		switch (rx_byte) {
+		case 0x0:
+			packet_type = DATA_PACKET;
+			break;
+		case 0x17:
+			packet_type = TEST_PACKET;
+			break;
+		default:
+			dmx512_clear_input();
+			dmx_error = 1;
+			return;
+		}
+	}
 
-	packet_count++;
+	if (byte_count >= start_addr && byte_count < start_addr + NUMBER_OUTPUTS)
+		dmx512_set_input(byte_count - start_addr, rx_byte);
+
+	byte_count++;
 }
 
 
@@ -82,12 +96,8 @@ void USART2_IRQHandler(void)
  */
 void HardFault_Handler(void)
 {
-    volatile int i = 0;
     /* Go to infinite loop when Hard Fault exception occurs */
-    while (1)
-    {
-        i++;
-    }
+    while (1) {}
 }
 
 
