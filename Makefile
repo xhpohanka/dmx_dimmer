@@ -18,7 +18,7 @@ OBJCOPY=$(CROSS_COMPILE)objcopy
 KIT = "discovery"
 
 ifeq ($(KIT), "discovery")
-LINKER_SCRIPT = stm32_flash_64_8.ld
+LINKER_SCRIPT = stm32_flash_128_8.ld
 START_CODE = startup_stm32f10x_md_vl.o
 CPU_DEF = -DSTM32F10X_MD_VL=1
 CFLAGS += -DDISCOVERY_KIT
