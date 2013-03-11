@@ -98,7 +98,7 @@ static void pwm_init()
 	pwm_out_init(TIM5, 0x0f);
 
 #else
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 |
 	        RCC_APB1Periph_TIM4 | RCC_APB1Periph_TIM5, ENABLE);
 
