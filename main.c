@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "stm32f10x.h"
 #include "dmx512_rec.h"
+#include "serial_tracer.h"
 
 void delay(volatile uint32_t x)
 {
@@ -198,6 +199,10 @@ int main(void)
 	struct dmx512_data *dmx512_data;
 
 	NVIC_init();
+
+	tracer_init();
+	tracer_puts("DMX Dimmer v0.2\n\r");
+
 	pwm_init();
 	dmx512_init();
 	dmx512_set_startaddr(49);

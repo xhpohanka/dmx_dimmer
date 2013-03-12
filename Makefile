@@ -15,7 +15,7 @@ AR=$(CROSS_COMPILE)ar
 AS=$(CROSS_COMPILE)as
 OBJCOPY=$(CROSS_COMPILE)objcopy
 
-KIT = "discovery"
+#KIT = "discovery"
 
 ifeq ($(KIT), "discovery")
 LINKER_SCRIPT = stm32_flash_128_8.ld
@@ -44,6 +44,7 @@ vpath %.c $(STD_PERIPH_DIR)/Libraries/STM32F10x_StdPeriph_Driver/src
 
 OBJS  = main.o stm32f10x_it.o system_stm32f10x.o $(START_CODE)
 OBJS += dmx512_rec.o 
+OBJS += serial_tracer.o 
 
 LIB_OBJS =  stm32f10x_dbgmcu.o	stm32f10x_pwr.o \
         	misc.o				stm32f10x_dma.o		stm32f10x_rcc.o \
