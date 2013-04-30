@@ -1,5 +1,5 @@
-
 STD_PERIPH_DIR ?= ../STM32F10x_StdPeriph_Lib_V3.5.0
+KIT ?= ""
 PROGRAM = dmx_dimmer
 
 
@@ -14,8 +14,6 @@ LD=$(CROSS_COMPILE)gcc
 AR=$(CROSS_COMPILE)ar
 AS=$(CROSS_COMPILE)as
 OBJCOPY=$(CROSS_COMPILE)objcopy
-
-#KIT = "discovery"
 
 ifeq ($(KIT), "discovery")
 LINKER_SCRIPT = stm32_flash_128_8.ld
@@ -33,7 +31,7 @@ CPU_FLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft $(CPU_DEF)
 
 CFLAGS += $(CPU_FLAGS) -DUSE_STDPERIPH_DRIVER
 CFLAGS += -I$(STD_PERIPH_INC) -I$(CMSIS_INC) -I$(CORE_SUP) -I.
-CFLAGS += -c -g -O0 -Wall -DDEBUG
+CFLAGS += -c -g -O0 -Wall
 ASFLAGS += -g -gstabs
 
 LDFLAGS = -T $(LINKER_SCRIPT) -L.

@@ -149,11 +149,27 @@ static void dmx512_init()
 
 #if !defined DISCOVERY_KIT
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOE, ENABLE);
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+
+	/* rs485 driver control */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
 
+	/* driver as input */
+	GPIOD->BRR |= (1 << 3) | (1 << 4);
+
+	/* usart_rx */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+	/* usart_tx - fix of HW BUG */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+	/* tim1_ch1 */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
@@ -205,7 +221,7 @@ int main(void)
 
 	pwm_init();
 	dmx512_init();
-	dmx512_set_startaddr(49);
+	dmx512_set_startaddr(1);
 	dmx512_rec_enable(1);
 
 	while (1)
@@ -216,5 +232,4 @@ int main(void)
 			dmx512_data->processed_flag = 1;
 		}
 	}
-
 }

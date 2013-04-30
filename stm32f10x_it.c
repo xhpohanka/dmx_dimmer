@@ -24,6 +24,7 @@
 #include <string.h>
 #include "stm32f10x_it.h"
 #include "dmx512_rec.h"
+#include "serial_tracer.h"
 
 static volatile int dmx_error = 1;
 static volatile int byte_count = 0;
@@ -40,10 +41,10 @@ void TIM1_CC_IRQHandler(void)
 	mab_time = TIM_GetCapture1(TIM1) - break_time;
 
 	/* use some tolerance for times */
-	if (break_time > 80 && break_time < 10e3 && mab_time > 8)
+	if (break_time > 80 && break_time < 10e3 && mab_time > 8) {
 		start_flag = 1;
-	else
-		start_flag = 0;
+		TIM_ITConfig(TIM1, TIM_IT_CC1, DISABLE);
+	}
 }
 
 void USART2_IRQHandler(void)
@@ -57,17 +58,18 @@ void USART2_IRQHandler(void)
 	fe_flag = USART_GetFlagStatus(USART2, USART_FLAG_FE);
 	rx_byte = USART_ReceiveData(USART2); /* also clears FE flag */
 
-	if (start_flag) {
-		dmx512_new_data(packet_type, byte_count - 1);
-		byte_count = 0;
+	if (fe_flag) {
+		TIM_ITConfig(TIM1, TIM_IT_CC1, ENABLE);
+		return;
 	}
 
-	if (fe_flag && !start_flag)
-		return;
-
-	/* first byte determines packet type */
-	if (byte_count == 0) {
+	if (start_flag) {
+		dmx512_new_data(packet_type, byte_count - 1);
 		dmx_error = 0;
+		byte_count = 0;
+		start_flag = 0;
+
+		/* first byte determines packet type */
 		switch (rx_byte) {
 		case 0x0:
 			packet_type = DATA_PACKET;
@@ -78,8 +80,10 @@ void USART2_IRQHandler(void)
 		default:
 			dmx512_clear_input();
 			dmx_error = 1;
+			TIM_ITConfig(TIM1, TIM_IT_CC1, ENABLE);
 			return;
 		}
+
 	}
 
 	if (byte_count >= start_addr && byte_count < start_addr + NUMBER_OUTPUTS)
@@ -97,6 +101,7 @@ void USART2_IRQHandler(void)
 void HardFault_Handler(void)
 {
     /* Go to infinite loop when Hard Fault exception occurs */
+	tracer_puts("hardfault\n\r");
     while (1) {}
 }
 

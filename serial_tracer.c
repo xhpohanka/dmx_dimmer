@@ -6,7 +6,7 @@
  */
 #include <string.h>
 #include "stm32f10x.h"
-
+#include "serial_tracer.h"
 
 void tracer_init(void)
 {
@@ -34,6 +34,8 @@ void tracer_init(void)
 
 	USART_Init(USART1, &USART_InitStructure);
 	USART_Cmd(USART1, ENABLE);
+
+	tracer_putchar('\r');
 }
 
 void tracer_putchar(const char ch)
