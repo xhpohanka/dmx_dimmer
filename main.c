@@ -8,15 +8,15 @@ void delay(volatile uint32_t x)
 	for (; x > 0; x--) ;
 }
 
-static void pwm_out_init(TIM_TypeDef *timx, int channels)
+static void pwm_out_init(TIM_TypeDef *timx, int channels, int pwm_freq)
 {
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
 	uint16_t prescalerValue = 0;
 
-	prescalerValue = (uint16_t) (SystemCoreClock / 24e6) - 1;
+	prescalerValue = (uint16_t) (SystemCoreClock / 255 / pwm_freq) - 1;
 	/* Time base configuration */
-	TIM_TimeBaseStructure.TIM_Period = 512 -1; //~46kHz  (24e6/36e3) - 1;
+	TIM_TimeBaseStructure.TIM_Period = 256 - 1;
 	TIM_TimeBaseStructure.TIM_Prescaler = prescalerValue;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -53,7 +53,7 @@ static void pwm_out_init(TIM_TypeDef *timx, int channels)
 	TIM_Cmd(timx, ENABLE);
 }
 
-static void pwm_init()
+static void pwm_init(int pwm_freq)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
@@ -93,10 +93,10 @@ static void pwm_init()
 	GPIO_PinRemapConfig(GPIO_FullRemap_TIM2, ENABLE);
 	GPIO_PinRemapConfig(GPIO_Remap_TIM4, ENABLE);
 
-	pwm_out_init(TIM2, 0x0f);
-	pwm_out_init(TIM3, 0x0f);
-	pwm_out_init(TIM4, 0x0f);
-	pwm_out_init(TIM5, 0x0f);
+	pwm_out_init(TIM2, 0x0f, pwm_freq);
+	pwm_out_init(TIM3, 0x0f, pwm_freq);
+	pwm_out_init(TIM4, 0x0f, pwm_freq);
+	pwm_out_init(TIM5, 0x0f, pwm_freq);
 
 #else
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
@@ -219,7 +219,7 @@ int main(void)
 	tracer_init();
 	tracer_puts("DMX Dimmer v0.2\n\r");
 
-	pwm_init();
+	pwm_init(1e6);
 	dmx512_init();
 	dmx512_set_startaddr(1);
 	dmx512_rec_enable(1);
